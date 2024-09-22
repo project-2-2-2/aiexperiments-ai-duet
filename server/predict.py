@@ -28,6 +28,57 @@ import os
 import time
 import tempfile
 import pretty_midi
+import magenta
+from magenta.models.melody_rnn import melody_rnn_model, melody_rnn_sequence_generator
+from magenta.protobuf import generator_pb2
+from magenta.protobuf import music_pb2
+import os
+import tempfile
+import pretty_midi
+
+# Use a pre-trained model with real-world data
+def initialize_real_world_model():
+    BUNDLE_NAME = 'attention_rnn'
+    STEPS_PER_QUARTER = 4
+    bundle_file = magenta.music.read_bundle_file(os.path.abspath(BUNDLE_NAME + '.mag'))
+    
+    # Load pre-trained config
+    config = melody_rnn_model.default_configs[BUNDLE_NAME]
+    generator = melody_rnn_sequence_generator.MelodyRnnSequenceGenerator(
+        model=melody_rnn_model.MelodyRnnModel(config),
+        details=config.details,
+        steps_per_quarter=STEPS_PER_QUARTER,
+        bundle=bundle_file
+    )
+    return generator
+
+# Generate music based on the pre-trained model
+def generate_real_music(generator, total_seconds=60):
+    # Create an empty primer sequence or use a real-world MIDI file as the primer
+    primer_sequence = music_pb2.NoteSequence()
+    
+    # Generator options (you can customize start and end times here)
+    generator_options = generator_pb2.GeneratorOptions()
+    generator_options.generate_sections.add(start_time=0, end_time=total_seconds)
+    
+    # Generate a music sequence
+    generated_sequence = generator.generate(primer_sequence, generator_options)
+    
+    # Save and return the generated music
+    output = tempfile.NamedTemporaryFile(suffix='.mid', delete=False)
+    magenta.music.midi_io.sequence_proto_to_midi_file(generated_sequence, output.name)
+    return output.name
+
+# Play the generated music (or output it to a synthesizer)
+def play_real_music(midi_file):
+    midi_data = pretty_midi.PrettyMIDI(midi_file)
+    
+    # Play the generated MIDI data using a MIDI player
+    # Alternatively, you can convert it to audio and play using an audio library
+    for instrument in midi_data.instruments:
+        for note in instrument.notes:
+            print(f"Playing note: {note.pitch} with velocity {note.velocity}")
+
 
 BUNDLE_NAME = 'attention_rnn'
 
